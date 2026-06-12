@@ -1,0 +1,192 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome file</title>
+  <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+  <div class="stackedit__html"><h1 id="statistical-test-decision-tree">Statistical Test Decision Tree</h1>
+<h2 id="important-considerations-before-starting">Important Considerations Before Starting:</h2>
+<ol>
+<li><strong>Goal:</strong> What question are you trying to answer?</li>
+<li><strong>Data Type:</strong>
+<ul>
+<li><strong>Continuous (Interval/Ratio):</strong> Measurable, ordered, equal intervals (e.g., height, temp).</li>
+<li><strong>Ordinal:</strong> Ordered categories, unequal intervals (e.g., Likert scale, rank).</li>
+<li><strong>Nominal (Categorical):</strong> Unordered categories (e.g., gender, color).</li>
+</ul>
+</li>
+<li><strong>Number of Variables:</strong> How many variables are involved?</li>
+<li><strong>Independent vs. Paired Samples:</strong> Are groups separate individuals or related measurements (e.g., before/after)?</li>
+<li><strong>Assumptions:</strong> Check requirements for parametric tests (Normality, Homogeneity of Variances, Independence). Use non-parametric tests if violated.</li>
+</ol>
+<hr>
+<h2 id="start-here-what-is-your-primary-goal">START HERE: What is your primary goal?</h2>
+<h3 id="goal-1-compare-groups-meansmediansdistributions">Goal 1: Compare Groups (Means/Medians/Distributions)</h3>
+<ul>
+<li><strong>How many groups are you comparing?</strong>
+<ul>
+<li><strong>One Group (Compare sample to a known value):</strong>
+<ul>
+<li><em>Variable Data Type?</em>
+<ul>
+<li><strong>Continuous:</strong>
+<ul>
+<li><em>Assumptions met (Normality)?</em>
+<ul>
+<li><strong>Yes:</strong> <code>One-Sample t-test</code></li>
+<li><strong>No:</strong> <code>One-Sample Wilcoxon Signed-Rank Test</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Nominal (Observed vs. Expected Frequency):</strong> <code>Chi-Square Goodness-of-Fit Test</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Two Groups:</strong>
+<ul>
+<li><em>Independent or Paired Samples?</em>
+<ul>
+<li><strong>Independent Groups:</strong>
+<ul>
+<li><em>Outcome Variable Data Type?</em>
+<ul>
+<li><strong>Continuous:</strong>
+<ul>
+<li><em>Assumptions met (Normality, Equal Variances)?</em>
+<ul>
+<li><strong>Yes:</strong> <code>Independent Samples t-test</code></li>
+<li><strong>No (Normality violated):</strong> <code>Mann-Whitney U Test</code> (Wilcoxon Rank-Sum)</li>
+<li><strong>No (Equal Variances violated):</strong> <code>Welch's t-test</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Ordinal:</strong> <code>Mann-Whitney U Test</code></li>
+<li><strong>Nominal (Compare Proportions/Frequencies):</strong> <code>Chi-Square Test of Independence</code> or <code>Fisher's Exact Test</code> (small samples) / <code>Z-test for two proportions</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Paired Groups:</strong>
+<ul>
+<li><em>Outcome Variable Data Type?</em>
+<ul>
+<li><strong>Continuous:</strong>
+<ul>
+<li><em>Assumptions met (Normality of differences)?</em>
+<ul>
+<li><strong>Yes:</strong> <code>Paired Samples t-test</code></li>
+<li><strong>No:</strong> <code>Wilcoxon Signed-Rank Test</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Ordinal:</strong> <code>Wilcoxon Signed-Rank Test</code></li>
+<li><strong>Nominal (e.g., change Yes/No):</strong> <code>McNemar's Test</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>More Than Two Groups (&gt;2):</strong>
+<ul>
+<li><em>Independent or Related (Repeated Measures)?</em>
+<ul>
+<li><strong>Independent Groups:</strong>
+<ul>
+<li><em>Outcome Variable Data Type?</em>
+<ul>
+<li><strong>Continuous:</strong>
+<ul>
+<li><em>Assumptions met (Normality, Equal Variances)?</em>
+<ul>
+<li><strong>Yes:</strong> <code>One-Way ANOVA</code> (+ Post-hoc tests e.g., Tukey)</li>
+<li><strong>No:</strong> <code>Kruskal-Wallis H Test</code> (+ Post-hoc tests e.g., Dunn’s)</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Ordinal:</strong> <code>Kruskal-Wallis H Test</code></li>
+<li><strong>Nominal (Frequencies across groups):</strong> <code>Chi-Square Test of Independence</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Related Groups (Repeated Measures):</strong>
+<ul>
+<li><em>Outcome Variable Data Type?</em>
+<ul>
+<li><strong>Continuous:</strong>
+<ul>
+<li><em>Assumptions met (Normality, Sphericity)?</em>
+<ul>
+<li><strong>Yes:</strong> <code>Repeated Measures ANOVA</code></li>
+<li><strong>No (Sphericity violated):</strong> <code>Repeated Measures ANOVA</code> with correction (e.g., Greenhouse-Geisser)</li>
+<li><strong>No (Normality violated):</strong> <code>Friedman Test</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Ordinal:</strong> <code>Friedman Test</code></li>
+<li><strong>Nominal:</strong> <code>Cochran's Q Test</code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="goal-2-examine-relationshipassociation-between-two-variables">Goal 2: Examine Relationship/Association Between Two Variables</h3>
+<ul>
+<li><strong>What are the data types of the TWO variables?</strong>
+<ul>
+<li><strong>Both Continuous:</strong>
+<ul>
+<li><em>Linear relationship? Assumptions met?</em>
+<ul>
+<li><strong>Yes:</strong> <code>Pearson Correlation (r)</code></li>
+<li><strong>No:</strong> <code>Spearman Rank Correlation (rho)</code> or <code>Kendall's Tau</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Both Ordinal:</strong> <code>Spearman Rank Correlation (rho)</code> or <code>Kendall's Tau</code></li>
+<li><strong>Both Nominal:</strong> <code>Chi-Square Test of Independence</code> or <code>Fisher's Exact Test</code> (small samples)</li>
+<li><strong>One Continuous, One Nominal (Dichotomous - 2 categories):</strong> <code>Independent Samples t-test</code> / <code>Mann-Whitney U</code> / <code>Point Biserial Correlation</code></li>
+<li><strong>One Continuous, One Nominal (&gt;2 categories):</strong> Relates to <code>ANOVA</code> framework.</li>
+<li><strong>One Continuous, One Ordinal:</strong> <code>Spearman Rank Correlation (rho)</code> (often used)</li>
+</ul>
+</li>
+</ul>
+<h3 id="goal-3-predict-an-outcome-regression-analysis---brief-overview">Goal 3: Predict an Outcome (Regression Analysis - Brief Overview)</h3>
+<ul>
+<li><strong>What is the data type of the Outcome (Dependent) Variable?</strong>
+<ul>
+<li><strong>Continuous:</strong> <code>Linear Regression</code> (Simple or Multiple)</li>
+<li><strong>Nominal (Dichotomous - 2 categories):</strong> <code>Binary Logistic Regression</code></li>
+<li><strong>Nominal (&gt;2 categories):</strong> <code>Multinomial Logistic Regression</code></li>
+<li><strong>Ordinal:</strong> <code>Ordinal Logistic Regression</code></li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="disclaimer">Disclaimer:</h2>
+<p>This tree covers common scenarios but isn’t exhaustive. Test choice depends on the specific research question, study design, data distribution, and sample size. Always verify test assumptions. Consulting statistical resources or a statistician is recommended for complex cases.</p>
+</div>
+</body>
+
+</html>
