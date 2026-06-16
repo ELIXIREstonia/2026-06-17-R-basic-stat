@@ -4,8 +4,8 @@ ELIXIR-EE training course on introduction to statistics in R. This course gives 
 
 This course is a mixture of lectures and practicals. The main files for practising are:
 
-- **Day 1 (3h)** — [2026-06-17-R-basic-stat.Rmd](2026-06-17-R-basic-stat.Rmd): EDA, two-group comparisons (paired & two-sample t-tests, Mann-Whitney, Wilcoxon signed-rank). Power analysis appendix for self-study.
-- **Day 2 (7h excl. breaks)** — [2026-06-18-R-basic-stat.Rmd](2026-06-18-R-basic-stat.Rmd): multiple testing correction, ANOVA + Tukey, Kruskal-Wallis + Dunn, multi-factorial ANOVA, correlation, linear regression, categorical data (Chi-square, Fisher's exact, odds ratio). Appendices (self-study): polynomial regression, ANOVA-as-LM, linear mixed models.
+- **Day 1** — [2026-06-17-R-basic-stat.Rmd](2026-06-17-R-basic-stat.Rmd): EDA, two-group comparisons (paired & two-sample t-tests, Mann-Whitney, Wilcoxon signed-rank). Power analysis appendix for self-study.
+- **Day 2** — [2026-06-18-R-basic-stat.Rmd](2026-06-18-R-basic-stat.Rmd): multiple testing correction, ANOVA + Tukey, Kruskal-Wallis + Dunn, multi-factorial ANOVA, correlation, linear regression, categorical data (Chi-square, Fisher's exact, odds ratio). Appendices (self-study): polynomial regression, ANOVA-as-LM, linear mixed models.
 
 R Markdown allows code (examples) and explanation / documentation to be in the same document in a nicely formatted, well structured manner.
 
@@ -16,7 +16,7 @@ Data files needed in the code are located in the `data` folder. Domain-relevant 
 - `qpcr_expression.csv` — paired ΔCt values, control vs treated (gene technology; paired t-test);
 - `PlantGrowth.csv` — additional example data.
 
-The lecture slides are found in the slides folder
+The lecture slides are found in the `slides` folder
 
 Learning outcomes:
 
