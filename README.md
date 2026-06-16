@@ -1,14 +1,22 @@
-# 2025-04-28-R-basic-stat
+# 2026-06-17-R-basic-stat
 
-ELIXIR-EE training course on introduction to statistics in R. This course is designed to provide researchers in biomedical sciences with experience in the application of basic statistical analysis techniques to a variety of biological problems. The course extensively covers materials from https://sib-swiss.github.io/Introduction-to-statistics-with-R/
+ELIXIR-EE training course on introduction to statistics in R. This course gives PhD students in chemistry, gene technology and food technology hands-on experience with applying basic statistical analysis techniques to research data. The course draws on materials from https://sib-swiss.github.io/Introduction-to-statistics-with-R/
 
+This course is a mixture of lectures and practicals. The main files for practising are:
 
+- **Day 1 (3h)** — [2026-06-17-R-basic-stat.Rmd](2026-06-17-R-basic-stat.Rmd): EDA, two-group comparisons (paired & two-sample t-tests, Mann-Whitney, Wilcoxon signed-rank). Power analysis appendix for self-study.
+- **Day 2 (7h excl. breaks)** — [2026-06-18-R-basic-stat.Rmd](2026-06-18-R-basic-stat.Rmd): multiple testing correction, ANOVA + Tukey, Kruskal-Wallis + Dunn, multi-factorial ANOVA, correlation, linear regression, categorical data (Chi-square, Fisher's exact, odds ratio). Appendices (self-study): polynomial regression, ANOVA-as-LM, linear mixed models.
 
-This course is a mixture of lectures and practicals. The main files for practising are the [2025-04-28-R-basic-stat.Rmd](2025-04-28-R-basic-stat.Rmd) and [day_2.zip](day_2.zip). R markdown allows code (examples) and explanation / documentation to be in the same document in a nicely formatted, well structured manner.
+R Markdown allows code (examples) and explanation / documentation to be in the same document in a nicely formatted, well structured manner.
 
-Data files needed in the code are located in the `data` folder.
+Data files needed in the code are located in the `data` folder. Domain-relevant datasets include:
 
-The lecture slides are found in [https://zenodo.org/records/15294211](https://zenodo.org/records/15294211)
+- `catalyst_yield.csv` — reaction yields for 4 catalysts (chemistry; ANOVA);
+- `fermentation.csv` — lactic acid concentration over time for two starter cultures (food technology; regression/correlation);
+- `qpcr_expression.csv` — paired ΔCt values, control vs treated (gene technology; paired t-test);
+- `PlantGrowth.csv` — additional example data.
+
+The lecture slides are found in the slides folder
 
 Learning outcomes:
 
