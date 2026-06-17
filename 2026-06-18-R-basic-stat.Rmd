@@ -214,13 +214,13 @@ The `*` includes both main effects of each factor and their interaction.
 
 Here we are looking at if the supplement differ overall (main effect of
 `supp`), does dose matter (main effect of `dose`), and does the effect
-of dose depend on supplement type (interaction).
+of dose and supplement together affect the outcome (interaction).
 
-The main effect of `supp` asks: "If I ignore dose differences (average
-over doses), do supplements differ in mean outcome?"
+The main effect of `supp` asks: "If I ignore dose differences, do
+supplements differ in mean outcome?"
 
-The main effect of `dose` asks: "If I ignore supplement differences
-(average over supplements), do doses differ in mean outcome?"
+The main effect of `dose` asks: "If I ignore supplement differences, do
+doses differ in mean outcome?"
 
 Use `+` if you only want main effects (independent contributions)
 
