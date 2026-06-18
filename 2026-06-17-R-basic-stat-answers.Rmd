@@ -1,0 +1,383 @@
+---
+title: "Introduction to statistics in R: Day 1"
+author: "Marilin Moor"
+date: "2026-06-17"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction to statistics in R: Day 1
+
+Day 1 focus: exploratory data analysis (EDA) and two-group comparisons.
+
+```{r}
+# imports
+library(tidyverse)
+library(patchwork)
+library(dplyr)
+library(ISwR)    
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+```
+
+### 1. Exploratory data analysis (EDA)
+
+For revising EDA, we will use the `hellung` dataset (from `ISwR`):
+describing growth conditions of the *Tetrahymena* unicellular organism:
+cell `conc` (cells/mL), `diameter` (µm), and `glucose` (1 = with
+glucose, 2 = without).
+
+```{r}
+?hellung
+data(hellung)
+head(hellung)
+```
+
+#### Descriptive statistics
+
+```{r}
+summary(hellung)
+mean(hellung$conc)
+```
+
+**Task 1**: Provide at least two ways to compute the mean of cell
+concentration.
+
+```{r}
+mean(hellung$conc)
+
+summary(hellung$conc)["Mean"]
+
+hellung %>% summarise(mean_conc = mean(conc))
+```
+
+**Task 2**: Using `dplyr`, find the average diameter of cells grown
+*with* glucose.
+
+```{r}
+# hint: filter() then summarise()
+hellung %>% 
+  filter(glucose == 1) %>%
+  summarise(mean_dm = mean(diameter))
+```
+
+**Task 3**: Show the distributions of all numeric features in separate
+plots and combine them in one frame using `patchwork`. See
+<https://www.data-to-viz.com/> for plotting inspiration.
+
+```{r}
+p_conc <- ggplot(hellung, aes(conc)) +
+  geom_histogram(fill = "blue")
+
+p_diam <- ggplot(hellung, aes(diameter)) +
+  geom_density(fill = "orange")
+
+p_conc / p_diam
+```
+
+**Task 4**: Visualise whether glucose addition affects cell diameter,
+and whether cell concentration is associated with diameter.
+
+```{r}
+# Does glucose affect diameter? 
+ggplot(hellung, aes(x = factor(glucose), y= diameter)) +
+  geom_boxplot()
+
+# Does concentration relate to diameter?
+ggplot(hellung, aes(x=conc, y=diameter)) + 
+  geom_point() 
+```
+
+------------------------------------------------------------------------
+
+### 2. Hypothesis testing - two-group comparisons
+
+Theory slides: "slides/Introduction_to_hypothesis_testing_26.pdf"
+
+We will focus on the following tests: the paired and two-sample t-tests
+and their non-parametric alternatives. The one-sample t-test is shown
+briefly at the end.
+
+#### 2.1 Paired t-test - qPCR expression
+
+*Use case*: "I measured the same samples under two conditions (control
+vs. treated). Did the treatment change the response?"
+
+Dataset: `data/qpcr_expression.csv` — ΔCt values for a target gene
+normalised to a housekeeping gene, measured on the same biological
+samples in a control and a treated condition.
+
+```{r}
+qpcr <- read.csv("data/qpcr_expression.csv")
+head(qpcr)
+```
+
+**Task 1**: Visualise the paired data with a scatter of treated vs
+control: each point is one sample. Add a linear line dashed red line
+where `y = x`. (Points below the line mean the treatment lowered ΔCt (=
+raised expression))
+
+```{r}
+ggplot(qpcr, aes(x=control_dCt, y=treated_dCt)) + 
+  geom_abline(slope = 1, intercept =0, color = "red", linetype="dashed") +
+  geom_point() 
+```
+
+**Assumptions of the paired t-test**
+
+-   each pair of observations comes from the same subject/unit (study
+    design);
+-   the per-sample differences are approximately normally distributed.
+
+**Task 2**: Compute the differences and check normality with a Q-Q plot
+and Shapiro-Wilk test (`shapiro.test()`).
+
+```{r}
+diff <- qpcr$treated_dCt - qpcr$control_dCt
+shapiro.test(diff)
+
+ggplot(qpcr, aes(diff)) +
+  geom_histogram(fill = "blue")
+```
+
+**Task 3**: Run the paired t-test and interpret the result.
+
+```{r}
+# t.test takes numeric vectors, rstatix: t_test takes a dataframe/tibble
+t.test(x = qpcr$treated_dCt, y = qpcr$control_dCt, paired = TRUE)
+```
+
+**Task 4:** Make sense of the output by answering the following
+questions:
+
+1)  What sided test is this?
+
+Answer: 2-sided
+
+2)  What values does the 95 percent confidence interval refer to?
+
+Answer:
+
+3)  Describe how the t-statistic is created.
+
+Answer:
+
+4)  Describe how the p-value is derived. Reach the same value using R
+    with using just t-statistic.
+
+```{r}
+# write code here 
+
+2 * pt(-abs(-8.0653), df=17)
+```
+
+------------------------------------------------------------------------
+
+#### 2.2 Two-sample t-test - catalyst yield
+
+*Use case*: "I have two independent groups (A and B). Do they differ on
+average?"
+
+Dataset: `data/catalyst_yield.csv` shows reaction yield (%) measured for
+four catalysts (A, B, C, D), 10 replicates each. In this task we will
+use 2 catalysts, A and B (`ab` dataframe). We want to find out if the
+catalysts' (A, B) effect on the reaction yield differs between each
+other.
+
+```{r}
+yield_data <- read.csv("data/catalyst_yield.csv")
+head(yield_data)
+
+ab <- yield_data %>% filter(catalyst %in% c("A", "B"))
+
+ggplot(ab, aes(x = catalyst, y = yield_pct, fill = catalyst)) +
+  geom_boxplot() +
+  geom_jitter() +
+  labs(y = "Yield (%)", title = "Reaction yield: catalyst A vs B") +
+  theme_minimal() + theme(legend.position = "none")
+```
+
+**Assumptions**
+
+-   the yield in each group is approximately normally distributed;
+-   the variances of the two groups are equal (homoscedasticity); use
+    **Levene's test** (`levene_test()`).
+
+**Task 1**: Find out if the assumptions above are met with the current
+data set.
+
+```{r}
+# in each group A, B 
+a_df <- ab %>%
+  filter(catalyst == "A")
+
+b_df <- ab %>%
+  filter(catalyst == "B")
+
+shapiro.test(a_df$yield_pct)
+shapiro.test(b_df$yield_pct)
+
+levene_test(ab, yield_pct ~ catalyst)
+```
+
+**Task 2**: Run the two-sample t-test and interpret it. If variances are
+unequal, use Welch's t-test by setting `var.equal = FALSE` (the default
+in R).
+
+```{r}
+t.test(yield_pct ~ catalyst, ab, var.equal = TRUE)
+```
+
+#### 2.3 One-sample t-test
+
+*Use case*: "Does my sample mean differ from a known reference value?"
+Uncommon as true population mean is rarely available.
+
+Dataset: `intake` dataset (from `ISwR`) describing energy intake for 11
+women.
+
+```{r}
+data(intake)
+?intake
+intake
+```
+
+**Task**: Test whether women's pre-menstrual energy intake differs from
+a recommended value of 7725 kJ.
+
+```{r}
+t.test(intake$pre, mu = 7725)
+```
+
+Let's see what we have learned so far:
+<https://www.menti.com/al5iszppvero>
+
+------------------------------------------------------------------------
+
+#### 2.4 Non-parametric alternatives
+
+Theory slides: "slides/Parametric_and_non_parametric_tests_26.pdf"
+
+When the normality assumption fails (small samples, skewed data), use:
+
+-   **Mann-Whitney U test** (`wilcox.test() /``wilcox.test()`) —
+    independent groups, analogous to the two-sample t-test;
+-   **Wilcoxon signed-rank test**
+    (`wilcox.test(..., paired = TRUE) /``wilcox.test(.., paired = TRUE)`)
+    — paired data, analogous to the paired t-test;
+-   **Data transformation** to fix skewed data so a t-test becomes
+    appropriate again (but beware of the transformed values)
+
+##### 2.4.1 Mann-Whitney U test
+
+Dataset: We will be using the air quality data set for this task. We
+want to determine whether ozone levels differ significantly between May
+and July.
+
+```{r}
+data(airquality)
+head(airquality)
+```
+
+```{r}
+may_july <- airquality %>%
+  filter(Month %in% c(5, 7)) %>%
+  mutate(Month = factor(Month, labels = c("May", "July")))
+```
+
+**Task 1:** Plot a combined histogram for ozone levels in May and July.
+
+```{r}
+ggplot(may_july, aes(x = Ozone, fill = Month)) +
+  geom_histogram()
+```
+
+**Task 2:** Remove NAs from the Ozone column. Check normality, perform
+log transformation if needed.
+
+```{r}
+!is.na(may_july$Ozone)
+```
+
+```{r}
+may_july_no_na <- may_july  %>%
+  filter(!is.na(Ozone))
+
+may_df <- may_july_no_na %>%
+  filter(Month == "May")
+
+july_df <- may_july_no_na %>%
+  filter(Month == "July")
+
+shapiro.test(may_df$Ozone)
+shapiro.test(july_df$Ozone)
+
+may_df$log_Ozone <- log(may_df$Ozone)
+july_df$log_Ozone <- log(july_df$Ozone)
+
+shapiro.test(may_df$log_Ozone)
+shapiro.test(july_df$log_Ozone)
+```
+
+**Task 3:** Test the difference between the ozone levels in May and
+July.
+
+```{r}
+wilcox.test(may_df$Ozone, july_df$Ozone)
+```
+
+##### 2.4.2 Wilcoxon signed-rank example
+
+**Task**: A basketball coach tests a new training plan, measuring the
+performance of 15 athletes before (`before`) and after (`after`) 4
+weeks. Determine whether the plan has an increased effect on the
+performance. Check the normality of the differences first, then decide
+which test to use.
+
+```{r}
+before <- c(80,82,85,87,90,91,92,93,94,95,96,97,98,99,100)
+after  <- c(79,81,84,86,89,90,91,92,93,94,95,96,97,98,85)
+
+diffs <- after - before
+
+shapiro.test(diffs)
+
+#wilcox.test(before, after, paired = TRUE, alternative = "greater")
+wilcox.test(after, before, paired = TRUE, alternative = "greater")
+```
+
+------------------------------------------------------------------------
+
+### 3. Wrap-up of Day 1
+
+-   EDA with `dplyr`, `ggplot2`, and `patchwork`.
+-   Picking the right two-group test: paired vs. independent; parametric
+    (t-test) vs. non-parametric (Wilcoxon / Mann-Whitney); with
+    assumption checks (normality, equal variance).
+
+**This marks the end of Day 1. Congrats!**
+
+------------------------------------------------------------------------
+
+## Appendix: Power analysis (self-study)
+
+How many samples do you need? Use `pwr.t.test()` for a precise
+calculation.
+
+```{r}
+if (!require(pwr)) 
+  { install.packages("pwr"); library(pwr) }
+
+cohens_d <- 0.5            # standardised effect size
+
+pwr.t.test(d = cohens_d, power = 0.8, sig.level = 0.05, type = "two.sample")
+pwr.t.test(d = cohens_d, power = 0.8, sig.level = 0.05,
+           type = "two.sample", alternative = "greater")
+```
