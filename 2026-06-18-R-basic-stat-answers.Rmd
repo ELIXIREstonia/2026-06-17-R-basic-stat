@@ -1,0 +1,715 @@
+---
+title: "Introduction to statistics in R — Day 2"
+author: "Marilin Moor"
+date: "2026-06-18"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction to statistics in R: Day 2
+
+```{r}
+# imports
+library(tidyverse)
+library(patchwork)
+library(dplyr)
+library(ISwR)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+```
+
+### Recap
+
+Yesterday we covered EDA and two-group comparisons (paired & two-sample
+t-tests, their non-parametric alternatives, and one-sample t-test).
+Let's open `stat_test_tree.html` to look at the options for tests.
+
+Today we extend to:
+
+1.  **Multiple testing correction**: needed whenever we run many tests.
+2.  **Multiple-group comparisons**: ANOVA (mention multi-factorial),
+    post-hoc Tukey, Kruskal-Wallis, Dunn.
+3.  **Correlation & regression**: Pearson, Spearman, Kendall, linear
+    regression.
+4.  **Categorical data**: Chi-square, Fisher's exact, odds ratio.
+
+------------------------------------------------------------------------
+
+### 1. Multiple testing correction
+
+When you run many tests against the same hypothesis, the chance of
+getting at least one false positive grows.
+
+$$P(\text{at least 1 FP}) = 1 - (1 - \alpha)^n$$
+
+where n is the number of tests, and $$\alpha$$ is the significance
+level.
+
+What does this false positive mean? The false positive is a test result
+that appears significant even though the null hypothesis is true.
+
+What does multiple testing mean?
+
+For 1 test you are willing to accept a 5% chance of incorrectly
+declaring significance of a test.
+
+20 tests would look something like having 20 two-sample t-tests for
+comparing expression between control and treatment groups of 20
+different genes. For 20 tests, this chance of at least one FP is risen
+to 64%. Multiple testing can refer to having multiple different null
+hypotheses.
+
+2 main modes to control false positives:
+
+FWER: probability of at least one false positive (stricter approach) -
+"how often do I get any false positive?"
+
+FDR: proportion of false positives among rejected H0-s (more lenient) -
+"of all results I call significant, what fraction are expected to be
+false positives?"
+
+Different correction methods control the amount of FP-s you may get:
+
+-   **Bonferroni**: significance threshold becomes: $\alpha$ / m, adjust
+    p-value would be: p\*m (p=initial p-value, m = number of tests).
+    Strict, controls FWER.
+-   **Holm**: uses sorting and p-value adjusting to find the suitable
+    threshold, less conservative than Bonferroni.
+-   **Benjamini-Hochberg** uses sorting and slightly different p-value
+    adjusting, controls FDR. Most permissive.
+
+Below we simulate 8 tests, each with 40 values from normal distribution
+(μ, 1) for different μ. A one-sample t-test (H0: μ = 0, H1:μ ≠ 0) is run
+with each group.
+
+```{r}
+set.seed(123)
+
+n <- 40
+
+groups <- list(
+  A = rnorm(n, mean = 0.8),   
+  B = rnorm(n, mean = 0.4),   
+  C = rnorm(n, mean = 0.1),   
+  D = rnorm(n, mean = 0.0),   
+  E = rnorm(n, mean = -0.1),  
+  F = rnorm(n, mean = -0.6),  
+  G = rnorm(n, mean = -1.0),  
+  H = rnorm(n, mean = 0.3)    
+)
+
+p_values <- sapply(
+  groups,
+  function(group) {           # for each group
+    t.test(group, mu = 0)$p.value  # run t-test and return p-value
+  }
+)
+
+# this sapply() is equivalent to: 
+#p_values <- c()
+#for (group_name in names(groups)) {
+#  group_data <- groups[[group_name]]
+#  test_result <- t.test(group_data, mu = 0)
+#  p_values[group_name] <- test_result$p.value
+#}
+
+data.frame(p_values)
+```
+
+Here we can see the effect of adjusting p-values with different methods.
+
+```{r}
+p_bonf  <- p.adjust(p_values, method = "bonferroni")
+p_holm  <- p.adjust(p_values, method = "holm")
+p_bh    <- p.adjust(p_values, method = "BH")  # Benjamini–Hochberg
+
+results <- data.frame(
+  raw_p = p_values,
+
+  bonferroni_p = p_bonf,
+  holm_p = p_holm,
+  bh_p = p_bh,
+
+  raw_sig = p_values < 0.05,
+  bonf_sig = p_bonf < 0.05,
+  holm_sig = p_holm < 0.05,
+  bh_sig = p_bh < 0.05
+)
+
+results
+```
+
+------------------------------------------------------------------------
+
+### 2. ANOVA: comparing the means of 3+ groups
+
+ANOVA: Analysis of Variance, variation between groups is compared to
+variation within groups, this helps compare the means of the groups.
+
+**Null hypothesis**: all group means are equal.
+
+**Alternative hypothesis**: at least one group mean differs.
+
+ANOVA tests all means at once, no need for testing correction here
+(compared to multiple pairwise comparisons in t-tests)
+
+Data set: We will use `data/catalyst_yield.csv` again, this time using
+all four (A,B,C,D) catalysts. With ANOVA we can determine if different
+catalysts produce different average yields, or are observed differences
+just random variation within groups?
+
+```{r}
+yield_data <- read.csv("data/catalyst_yield.csv")
+yield_data$catalyst <- factor(yield_data$catalyst)
+head(yield_data)
+```
+
+**Task 1**: Visualise the four catalyst groups and their yield
+percentage with a box plot.
+
+```{r}
+ggplot(yield_data, aes(x = catalyst, y = yield_pct, fill = catalyst)) +
+  geom_boxplot() +
+  geom_jitter() 
+```
+
+#### Assumptions
+
+-   normality within each group (Shapiro-Wilk per group);
+-   homogeneity of variances across groups (Levene's test).
+
+**Task 2**: Test the assumptions above.
+
+```{r}
+# 2 ways 
+#1st way filtering 
+a_df <- yield_data %>%
+  filter(catalyst == "A")
+
+b_df <- yield_data %>%
+  filter(catalyst == "B")
+
+c_df <- yield_data %>%
+  filter(catalyst == "C")
+
+d_df <- yield_data %>%
+  filter(catalyst == "D")
+
+#shapiro.test(a_df$yield_pct)
+#shapiro.test(b_df$yield_pct)
+#shapiro.test(c_df$yield_pct)
+#shapiro.test(d_df$yield_pct)
+
+# 2nd way using pipes
+yield_data %>% 
+  group_by(catalyst) %>% 
+  shapiro_test(yield_pct)
+```
+
+```{r}
+levene_test(yield_data, yield_pct ~ catalyst)
+```
+
+**Task 3**: Run ANOVA using `aov`. Summarise the test results with
+`summary()`.
+
+```{r}
+anova_fit <- aov(yield_pct ~ catalyst, yield_data)
+summary(anova_fit)
+```
+
+**Let's look at the output**
+
+1) What are residuals?
+
+Answer: Residuals = within-group variation ("noise") → each `yield_pct`
+is compared to its catalyst's mean yield.
+
+2) What is the Sum Sq and Mean Sq here?
+
+Answer: Sum of squares: measures total variability
+
+catalyst: variability explained by differences between catalyst means,
+residuals: variability within catalysts
+
+Mean Sq = Sum Sq / DF (\~variance)
+
+3) What is F-statistic and how does it relate to ANOVA?
+
+Answer: F = Mean Sq (between groups) / Mean Sq (within groups)
+
+If all catalysts had the same mean: between group variance ≈ within
+group variance (F≈1)
+
+if catalysts differ: between-group variance becomes much larger.
+
+ANOVA indicates that at least one group differs from another, but not
+which. To find out, we should run a post-hoc test.
+
+**Task 5**: Run Tukey HSD using `TukeyHSD` on the fitted ANOVA model.
+You can visualise the results of the Tukey HSD by using `plot()` .
+
+```{r}
+tukey_res <- TukeyHSD(anova_fit)
+tukey_res
+plot(tukey_res)
+```
+
+What can you conclude about the catalysts?
+
+#### Kruskal-Wallis — non-parametric alternative for ANOVA
+
+When ANOVA assumptions (normality, equal variance) are not met, we can
+use `kruskal.test`. Instead of comparing means, it ranks all data points
+and compares medians.
+
+Kruskal-Wallis can be followed by the Dunn's Test for multiple
+comparisons of the ranked data.
+
+As the `airquality` data set is not normally distributed, and we would
+like to compare more than 2 months, we can run Kruskal-Wallis:
+
+```{r}
+#kruskal.test(Ozone ~ Month, airquality)
+dunn_test(airquality, Ozone ~ Month, p.adjust.method = "bonferroni")
+```
+
+Note: `dunn_test` already corrects p-values via `p.adjust.method`.
+Whenever you do multiple pairwise comparisons, you must correct them.
+
+#### Multi-factorial ANOVA
+
+When more than one factor may affect the response, we should use a
+multi-factorial ANOVA. The multi-factorial ANOVA enables to consider
+individual effects of each factor (+ in formula), as well as the
+interaction of factors (:) or both (\*). In the Appendix D you can see
+it being applied on an example data set. In R, to assess the individual
+effects as well as interaction effect of both factors, we would express
+it this way: aov(outcome \~ factor1 \* factor2, data = dataframe).
+
+------------------------------------------------------------------------
+
+### 3. Correlation & regression
+
+Theory: "slides/corr_simple_reg_26.pdf"
+
+#### 3.1 Correlation
+
+| Method | When | Notes |
+|------------------------|------------------------|------------------------|
+| **Pearson** | linear, both variables \~normal | sensitive to outliers |
+| **Spearman** | monotonic, rank-based | robust to outliers, non-linear monotonic |
+| **Kendall** | rank-based | better for small n / many ties |
+
+Data set: we will use `data/fermentation.csv` which has data about
+lactic acid concentration over time during fermentation for two starter
+cultures. More exactly we will focus on the change of concentration over
+time for Culture X.
+
+```{r}
+ferm <- read.csv("data/fermentation.csv")
+head(ferm)
+
+ferm_x <- ferm %>% filter(culture == "Culture_X")
+```
+
+**Task** **1**: Check the Pearson assumption (approximate bivariate
+normality) by testing both variables (time and concentration).
+
+```{r}
+shapiro.test(ferm_x$time_h)
+shapiro.test(ferm_x$lactic_acid_g_L)
+```
+
+**Task 2**: Run Pearson / Spearman / Kendall correlation. Pick the
+appropriate `use = ...` argument to handle NAs.
+
+```{r}
+cor.test(ferm_x$time_h, ferm_x$lactic_acid_g_L, method="spearman")
+cor(ferm_x$time_h, ferm_x$lactic_acid_g_L, method="spearman")
+```
+
+**Task 3:** Plot a scatter plot of concentration vs time for Culture X.
+
+```{r}
+ggplot(ferm_x, aes(x=time_h, y=lactic_acid_g_L)) + 
+  geom_point() 
+```
+
+#### 3.2 Linear regression
+
+**Task 1:** Fit a linear model (Culture X) with lactic acid
+concentration being described by time (conc = intercept + slope \*
+time). Inspect the summary using `summary()`.
+
+```{r}
+linear_model <- lm(lactic_acid_g_L ~ time_h, data = ferm_x)
+summary(linear_model)
+```
+
+NB! The null hypothesis in linear regression tests for slope (i.e. "is
+there a significant effect of time?") and intercept (i.e. "is the
+predicted value at time 0 significantly different from 0?").
+
+**Task 2:** Make sense of the summary output by answering:
+
+1)  What are residuals in linear regression?
+
+    Answer: Residuals are the differences between observed values and
+    the values predicted by the regression model.
+
+2)  What does the p-value for the slope mean?
+
+    Answer: The p-value tests the hypothesis: H0: The true slope = 0 (no
+    relationship between time and lactic acid)
+
+    t-stat = slope / standard error of slope
+
+3)  How are the degrees of freedom determined?
+
+    Answer: Residual degrees of freedom is 28, since there are 30 data
+    points - 2 parameters (intercept and slope).
+
+**Task 3**: Let's plot the linear regression line on top (can be done
+using `geom_abline()`) of the scatter plot created before.
+
+```{r}
+ggplot(ferm_x, aes(x=time_h, y=lactic_acid_g_L)) + 
+  geom_point() +
+  geom_abline(slope = 1.03525, intercept = 0.12249, color = "red")
+  
+```
+
+#### 3.3 Standardisation with `scale()`
+
+When predictors are on very different scales, coefficients are hard to
+compare and may be numerically unstable. Standardising (like subtract by
+mean, divide by SD) gives coefficients in units of *standard deviations*
+of the predictor, making them comparable. See the Appendix C below for
+an example. 1
+
+### 4. Categorical data
+
+Categorical data are often summarised as a **contingency (aka
+association) table** (2 categorical variables, but can be beyond 2x2
+table):
+
+|              | Likes dogs | Does not like dogs |
+|--------------|-----------:|-------------------:|
+| Right-handed |         15 |                 25 |
+| Left-handed  |         25 |                 45 |
+
+#### 4.1 Chi-square test of independence
+
+Tests whether there is a meaningful relationship between categorical
+variables or whether observed data matches what you'd expect if there
+were no effect/relationship.
+
+Null hypothesis: there is no relationship between two categorical
+variables.
+
+$$
+\chi^2 = \sum_{i=1}^{r} \sum_{j=1}^{c} \frac{(O_{ij} - E_{ij})^2}{E_{ij}}
+$$
+
+where $r$, $c$ are the numbers of rows/columns, $O_{ij}$ are observed
+and $E_{ij}$ are expected frequencies. Degrees of freedom: $(r-1)(c-1)$.
+
+**Expected frequencies**:
+
+$$
+E_{ij} = \frac{(\text{Row Total})_i \times (\text{Column Total})_j}{\text{Grand Total}}
+$$
+
+**Assumptions**
+
+-   large enough sample (all expected cell counts ≥ 5);
+-   observations independent (each unit in exactly one cell).
+
+```{r}
+tbl <- matrix(c(15, 25, 25, 45), nrow = 2, byrow = TRUE,
+              dimnames = list(handedness = c("Right", "Left"),
+                              preference = c("Dogs",  "No dogs")))
+tbl
+
+row_tot <- rowSums(tbl)
+col_tot <- colSums(tbl)
+grand_tot <- sum(tbl)
+
+expected <- outer(row_tot, col_tot) / grand_tot # outer() creates all row x column combination 
+expected
+
+chi <- chisq.test(tbl)
+chi
+```
+
+**Task**: Using the `airquality` dataset, determine whether there is an
+association between month and the temperature level. Categorise `Temp`
+into ≥ 3 bins (e.g. low/medium/high with `cut()`) to satisfy the
+Chi-square assumptions.
+
+```{r}
+temp_ranges <- cut(airquality$Temp, 3, labels = c("low", "medium", "high"))
+
+months_factored <- factor(airquality$Month)
+
+temp_tbl <- table(temp_ranges, months_factored)
+temp_tbl
+
+row_tot <- rowSums(temp_tbl)
+col_tot <- colSums(temp_tbl)
+grand_tot <- sum(temp_tbl)
+
+expected <- outer(row_tot, col_tot) / grand_tot # outer() creates all row x column combination 
+expected
+
+chi <- chisq.test(temp_tbl)
+chi
+```
+
+#### 4.2 Fisher's exact test
+
+Use when:
+
+-   any expected cell count is small (≤ 5);
+-   total sample size is small (\< \~20) (but can also be used for
+    larger sample sizes);
+
+Fisher's test computes the exact p-value by creating all possible
+combinations of 2×2 tables "at least as extreme" as the observed one,
+given the fixed row and column totals (hence the term "exact").
+
+Null hypothesis: categorical variables are independent/no association
+(odds ratio = 1)
+
+Alternative hypothesis: there is an association between the variables
+(odds ratio ≠ 1) .
+
+##### Classic example: tea tasting
+
+Ronald Fisher's original example. A woman claims to distinguish whether
+milk or tea was poured first; Fisher gave her 8 cups (4 of each). She
+Fisher test with a one-sided test.
+
+```{r}
+tea_tasting <- matrix(c(3, 1, 1, 3),
+                     nrow = 2,
+                     dimnames = list(Guess = c("Milk", "Tea"),
+                                     Truth = c("Milk", "Tea")))
+
+tea_tasting
+```
+
+3 times milk was correctly identified as milk 3 times tea was correctly
+identified as tea 1 misclassification each way.
+
+We now test whether guessing is independent of truth (i.e., whether
+people can actually distinguish milk-first vs tea-first pouring order).
+
+```{r}
+fisher.test(tea_tasting)
+```
+
+Odds ratio (OR) here refers: \
+The observed imbalance in the sample suggests one group has about 6×
+higher odds of a particular outcome.
+
+→ People are more likely to correctly match categories than you’d expect
+under independence.
+
+P-values shows probability: "if there were really no association/no
+ability to distinguish tea first or milk first, how often would we see a
+table this extreme or more extreme?"
+
+P = 0.49 → not that extreme
+
+Even though OR looks large, small sample size can influence the p-value.
+
+CI for odds ratios: wide range - from negative association to extremely
+strong positive association (because the sample size is tiny)
+
+**Task**: Let $X$ be a journal (*Mathematics Magazine* or *Science*),
+and $Y$ be the topic of an article (math or biology). Suppose
+*Mathematics Magazine* has 5 math articles and 1 biology article, and
+*Science* has 1 math and 4 biology articles. Is there an association
+between the journal and the topic? What does the output indicate?
+
+```{r}
+journal_tbl <- matrix(c(5, 1, 1, 4), byrow = TRUE,
+                     nrow = 2,
+                     dimnames = list(journal = c("MathMag", "Science"),
+                                     topic = c("math", "biology")))
+
+journal_tbl
+
+fisher.test(journal_tbl)
+```
+
+------------------------------------------------------------------------
+
+### 5. Wrap-up of Day 2
+
+You can now:
+
+-   correct p-values when running multiple tests;
+-   compare 3+ groups parametrically (ANOVA + Tukey) and
+    non-parametrically (Kruskal-Wallis + Dunn);
+-   handle two factors at once with multi-factorial ANOVA;
+-   quantify and model relationships between numeric variables
+    (correlation, linear regression, standardisation);
+-   analyse categorical data (Chi-square, Fisher's exact, odds ratio).
+
+Please fill in this feedback form:<https://forms.gle/wXv72uFrck8a5xfF7>
+
+**This marks the end of the course. Congrats!**
+
+------------------------------------------------------------------------
+
+## Appendix A: Polynomial regression (self-study)
+
+When the relationship is non-linear in the predictor, fit a polynomial:
+
+```{r}
+data(iris)
+linear_model <- lm(Sepal.Length ~ Sepal.Width, data = iris)
+poly_model   <- lm(Sepal.Length ~ poly(Sepal.Width, 3, raw = TRUE), data = iris)
+
+iris$pred_linear <- predict(linear_model, iris)
+iris$pred_poly   <- predict(poly_model,   iris)
+
+summary(linear_model)
+summary(poly_model)
+
+ggplot(iris, aes(Sepal.Width, Sepal.Length)) +
+  geom_point(aes(colour = Species)) +
+  geom_line(aes(y = pred_linear), colour = "red",   linetype = "dashed") +
+  geom_line(aes(y = pred_poly),   colour = "green") +
+  labs(title = "Linear vs polynomial fit") +
+  theme_minimal()
+```
+
+------------------------------------------------------------------------
+
+## Appendix B: Linear mixed models (self-study)
+
+Mixed models handle **fixed effects** (what you care about, e.g.
+treatment) together with **random effects** (variation you want to
+account for but not estimate individually, e.g. experimental batch,
+individual subjects).
+
+Interactive intro: <http://mfviz.com/hierarchical-models/>
+
+**When to use them**: when your data have hierarchical /
+repeated-measures structure (multiple measurements per subject,
+replicates within batches), and treating those measurements as
+independent would inflate your false positive rate. Implementations:
+`lme4::lmer()` and `lmerTest::lmer()`.
+
+```{r}
+# Example sketch (not run):
+# library(lme4); library(lmerTest)
+# lmer(lactic_acid_g_L ~ time_h + culture + (1 | replicate), data = ferm)
+# Here `(1 | replicate)` says: each replicate gets its own random intercept.
+```
+
+This requires solid understanding of your study design — consult a
+statistician for non-trivial cases.
+
+## Appendix C: Example for standardisation
+
+Let's take a look at a synthetic example where we have Target_Y that is
+affected by both the Annual income (USD) and toxin levels in water
+(mg/L) equally:
+
+```{r}
+# Set seed for reproducibility
+set.seed(42)
+n_samples <- 200
+
+# Predictor A: Huge scale (e.g., Annual Income in USD)
+# Mean = 70,000, SD = 15,000
+Income_USD <- rnorm(n_samples, mean = 70000, sd = 15000)
+
+# Predictor B: Tiny scale (e.g., Toxin levels in mg/L)
+# Mean = 0.05, SD = 0.01
+Toxin_mgL <- rnorm(n_samples, mean = 0.05, sd = 0.01)
+
+# True relationship: Both variables contribute equally to Y's variance
+# (15000 * 0.002 = 30) and (0.01 * 3000 = 30) -> Balanced impact
+noise <- rnorm(n_samples, mean = 0, sd = 5)
+Target_Y <- (0.002 * Income_USD) + (3000 * Toxin_mgL) + noise
+
+# Combine into a data frame
+df <- data.frame(Income_USD, Toxin_mgL, Target_Y)
+
+# View the first few rows
+head(df)
+```
+
+If we run unstandardised linear regression, we get:
+
+```{r}
+model_raw <- lm(Target_Y ~ Income_USD + Toxin_mgL, data = df)
+print(model_raw)
+```
+
+Because the coefficients are completely dependent on the underlying
+units (dollars vs. milligrams), it looks like the toxin has a massive
+effect and income has zero effect. In reality, both have equal effect.
+
+```{r}
+model_standardized <- lm(Target_Y ~ scale(Income_USD) + scale(Toxin_mgL), data = df)
+print(model_standardized)
+```
+
+With standardizing we are shifting from "What happens if we increase
+income by \$1?", it asks: "What happens if we increase income by one
+typical variation (Standard Deviation)?". This helps explain the
+equality of the effect better.
+
+------------------------------------------------------------------------
+
+## Appendix D: Two-way ANOVA example
+
+The built-in `ToothGrowth` dataset (The response is the length of
+todontoblasts (cells responsible for tooth growth) in 60 guinea pigs by
+vitamin C supplement type and dose):
+
+```{r}
+data(ToothGrowth)
+?ToothGrowth
+ToothGrowth$dose <- factor(ToothGrowth$dose)
+head(ToothGrowth)
+```
+
+For running a multi-factorial ANOVA to test how the supplement type and
+dose affects the outcome we can use
+
+```{r}
+# Two-way ANOVA with interaction
+two_way <- aov(len ~ supp * dose, data = ToothGrowth)
+summary(two_way)
+```
+
+The `*` includes both main effects of each factor and their interaction.
+
+Here we are looking at if the supplement differ overall (main effect of
+`supp`), does dose matter (main effect of `dose`), and does the effect
+of dose and supplement together affect the outcome (interaction).
+
+The main effect of `supp` asks: "If I ignore dose differences, do
+supplements differ in mean outcome?"
+
+The main effect of `dose` asks: "If I ignore supplement differences, do
+doses differ in mean outcome?"
+
+Use `+` if you only want main effects (independent contributions)
+
+Use `:` for interaction (combined effect) only.
